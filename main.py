@@ -72,7 +72,6 @@ def run_model(
 
 def main():
     params = [
-        (32, 64, 128, 256, 512),
         (50, 100, 200, 300),
         (50, 100, 200, 300),
         ('sgd', 'adam', 'rmsprop'),
@@ -84,7 +83,7 @@ def main():
         (True, False),
         (0, 5, 10, 15, 20),
     ]
-    run_model(*(param[0] for param in params))
+    run_model(512, *(param[0] for param in params))
 
 if __name__ == '__main__':
     main()
