@@ -40,7 +40,11 @@ def run_model(
     input_var = T.imatrix('input')
     l_in = lasagne.layers.InputLayer((None, step_size), input_var)
     l_emb = lasagne.layers.EmbeddingLayer(l_in, len(words_index) + 1, embedding_size)
+    if drop_out_apply in ('embedding', 'both'):
+        l_emb = lasagne.layers.DropoutLayer(l_emb, drop_out)
     l_forward = lasagne.layers.LSTMLayer(l_emb, hidden_size, grad_clipping=100, nonlinearity=tanh)
+    if drop_out_apply in ('output', 'both'):
+        l_forward = lasagne.layers.DropoutLayer(l_forward, drop_out)
     l_out = lasagne.layers.DenseLayer(l_forward, num_units=len(words_index) + 1, nonlinearity=softmax)
 
     # vars
@@ -65,7 +69,7 @@ def run_model(
                     batch_X, batch_y = val_X[k:k + batch_size], val_y[k:k + batch_size]
                     total_cost += compute_cost(batch_X, batch_y) * len(batch_y)
                 # geometric average of perplexity
-                print(j, datetime.datetime.now(), 2 ** (total_cost / len(val_y)))
+                print(datetime.datetime.now(), j, 2 ** (total_cost / len(val_y)))
             batch_X, batch_y = train_X[j:j + batch_size], train_y[j:j + batch_size]
             train(batch_X, batch_y)
 
@@ -78,7 +82,7 @@ def main():
         (0.1, 0.01, 0.001),
         (5, 10, 20, 30),
         (5, 10, 20, 30),
-        (0.2, 0.4, 0.6, 0.8, 1.0),
+        (0, 0.2, 0.4, 0.6, 0.8),
         ('output', 'embedding', 'both'),
         (True, False),
         (0, 5, 10, 15, 20),
