@@ -62,7 +62,7 @@ def run_model(
             if j % 1000 == 0:
                 total_cost = 0
                 for k in range(0, len(val_y), batch_size):
-                    batch_X, batch_y = val_X[j:j + batch_size], val_y[j:j + batch_size]
+                    batch_X, batch_y = val_X[k:k + batch_size], val_y[k:k + batch_size]
                     total_cost += compute_cost(batch_X, batch_y) * len(batch_y)
                 # geometric average of perplexity
                 print(j, datetime.datetime.now(), 2 ** (total_cost / len(val_y)))
