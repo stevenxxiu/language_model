@@ -97,7 +97,7 @@ def run_model(
 
 
 def main():
-    params = [
+    params_choices = [
         (50, 100, 200, 300),
         (50, 100, 200, 300),
         ('sgd', 'adam', 'rmsprop'),
@@ -110,7 +110,7 @@ def main():
         (0, 5, 10, 15, 20),
     ]
     while True:
-        params = [random.choice(param) for param in params]
+        params = [random.choice(param_choices) for param_choices in params_choices]
         print(params)
         run_model(512, *params)
 
