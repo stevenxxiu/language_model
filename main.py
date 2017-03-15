@@ -13,8 +13,8 @@ def words_to_mat(words, step_size, words_index):
     res = np.empty(len(words), dtype=int)
     for i, word in enumerate(words):
         res[i] = words_index.get(word, len(words_index))
-    X = np.empty((len(words) - step_size, step_size), dtype=int)
-    y = np.empty((len(words) - step_size,), dtype=int)
+    X = np.empty((len(words) - step_size, step_size), dtype=np.int32)
+    y = np.empty((len(words) - step_size,), dtype=np.int32)
     for i in range(len(words) - step_size):
         X[i] = res[i: i + step_size]
         y[i] = res[i + step_size]
@@ -58,24 +58,34 @@ def run_model(
     train = theano.function([input_var, target_values], cost, updates=updates)
     compute_cost = theano.function([input_var, target_values], cost)
 
-    def val_cost(X, y):
+    def all_cost(X, y):
         total_cost = 0
-        for k in range(0, len(val_y), batch_size):
+        for k in range(0, len(y), batch_size):
             batch_X_, batch_y_ = X[k:k + batch_size], y[k:k + batch_size]
             total_cost += compute_cost(batch_X_, batch_y_) * len(batch_y_)
         # geometric average of perplexity
         return 2 ** (total_cost / len(y))
 
+    prev_val_cost = np.inf
     for i in range(epoch_size):
         # generate minibatches
         p = np.random.permutation(len(train_y))
+
+        # train
         train_X, train_y = train_X[p], train_y[p]
         for j in range(0, len(train_y), batch_size):
             if j % 1000 == 0:
-                print(datetime.datetime.now(), j, val_cost(val_X, val_y), val_cost(test_X, test_y))
+                # progress indicator
+                print(datetime.datetime.now(), j, all_cost(val_X, val_y))
             batch_X, batch_y = train_X[j:j + batch_size], train_y[j:j + batch_size]
             train(batch_X, batch_y)
-    print(datetime.datetime.now(), 'final', val_cost(val_X, val_y), val_cost(test_X, test_y))
+
+        # validate on epoch
+        val_cost = all_cost(val_X, val_y)
+        if early_stopping and val_cost >= prev_val_cost:
+            break
+        prev_val_cost = val_cost
+    print(datetime.datetime.now(), 'final', all_cost(val_X, val_y), all_cost(test_X, test_y))
 
 
 def main():
@@ -91,7 +101,9 @@ def main():
         (True, False),
         (0, 5, 10, 15, 20),
     ]
-    run_model(512, *(param[0] for param in params))
+    params = [param[0] for param in params]
+    print(params)
+    run_model(512, *params)
 
 if __name__ == '__main__':
     main()
