@@ -82,7 +82,7 @@ def run_model(
         # train
         train_X, train_y = train_X[p], train_y[p]
         for j in range(0, len(train_y), batch_size):
-            if j % 2000 == 0:
+            if j % 256000 == 0:
                 # progress indicator
                 print(datetime.datetime.now(), j, all_cost(val_X, val_y))
             batch_X, batch_y = train_X[j:j + batch_size], train_y[j:j + batch_size]
