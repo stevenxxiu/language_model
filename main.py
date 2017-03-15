@@ -4,6 +4,7 @@ from collections import Counter
 import lasagne
 import numpy as np
 import theano.tensor as T
+import random
 from lasagne.nonlinearities import *
 from nltk.corpus import brown
 
@@ -48,14 +49,21 @@ def run_model(
     l_out = lasagne.layers.DenseLayer(l_forward, num_units=len(words_index) + 1, nonlinearity=softmax)
 
     # vars
+    lr = T.scalar('lr')
     target_values = T.ivector('target_output')
     network_output = lasagne.layers.get_output(l_out)
     cost = T.nnet.categorical_crossentropy(network_output, target_values).mean()
     all_params = lasagne.layers.get_all_params(l_out, trainable=True)
-    updates = lasagne.updates.adagrad(cost, all_params, initial_lr)
+    updates = None
+    if optimizer == 'sgd':
+        updates = lasagne.updates.sgd(cost, all_params, lr)
+    elif optimizer == 'adam':
+        updates = lasagne.updates.adam(cost, all_params, initial_lr)
+    elif optimizer == 'rmsprop':
+        updates = lasagne.updates.rmsprop(cost, all_params, initial_lr)
 
     # functions
-    train = theano.function([input_var, target_values], cost, updates=updates)
+    train = theano.function([input_var, target_values] + ([lr] if optimizer == 'sgd' else []), cost, updates=updates)
     compute_cost = theano.function([input_var, target_values], cost)
 
     def all_cost(X, y):
@@ -74,11 +82,11 @@ def run_model(
         # train
         train_X, train_y = train_X[p], train_y[p]
         for j in range(0, len(train_y), batch_size):
-            if j % 1000 == 0:
+            if j % 2000 == 0:
                 # progress indicator
                 print(datetime.datetime.now(), j, all_cost(val_X, val_y))
             batch_X, batch_y = train_X[j:j + batch_size], train_y[j:j + batch_size]
-            train(batch_X, batch_y)
+            train(batch_X, batch_y, initial_lr ** max(i + 1 - 4, 0.0))
 
         # validate on epoch
         val_cost = all_cost(val_X, val_y)
@@ -101,9 +109,10 @@ def main():
         (True, False),
         (0, 5, 10, 15, 20),
     ]
-    params = [param[0] for param in params]
-    print(params)
-    run_model(512, *params)
+    while True:
+        params = [random.choice(param) for param in params]
+        print(params)
+        run_model(512, *params)
 
 if __name__ == '__main__':
     main()
