@@ -63,7 +63,7 @@ def run_model(
         updates = lasagne.updates.rmsprop(cost, all_params, initial_lr)
 
     # functions
-    train = theano.function([input_var, target_values] + ([lr] if optimizer == 'sgd' else []), cost, updates=updates)
+    train = theano.function([input_var, target_values, lr], cost, updates=updates, on_unused_input='ignore')
     compute_cost = theano.function([input_var, target_values], cost)
 
     def all_cost(X, y):
