@@ -58,20 +58,24 @@ def run_model(
     train = theano.function([input_var, target_values], cost, updates=updates)
     compute_cost = theano.function([input_var, target_values], cost)
 
+    def val_cost(X, y):
+        total_cost = 0
+        for k in range(0, len(val_y), batch_size):
+            batch_X_, batch_y_ = X[k:k + batch_size], y[k:k + batch_size]
+            total_cost += compute_cost(batch_X_, batch_y_) * len(batch_y_)
+        # geometric average of perplexity
+        return 2 ** (total_cost / len(y))
+
     for i in range(epoch_size):
         # generate minibatches
         p = np.random.permutation(len(train_y))
         train_X, train_y = train_X[p], train_y[p]
         for j in range(0, len(train_y), batch_size):
             if j % 1000 == 0:
-                total_cost = 0
-                for k in range(0, len(val_y), batch_size):
-                    batch_X, batch_y = val_X[k:k + batch_size], val_y[k:k + batch_size]
-                    total_cost += compute_cost(batch_X, batch_y) * len(batch_y)
-                # geometric average of perplexity
-                print(datetime.datetime.now(), j, 2 ** (total_cost / len(val_y)))
+                print(datetime.datetime.now(), j, val_cost(val_X, val_y), val_cost(test_X, test_y))
             batch_X, batch_y = train_X[j:j + batch_size], train_y[j:j + batch_size]
             train(batch_X, batch_y)
+    print(datetime.datetime.now(), 'final', val_cost(val_X, val_y), val_cost(test_X, test_y))
 
 
 def main():
