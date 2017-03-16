@@ -1,19 +1,19 @@
 import datetime
+import itertools
+import random
 from collections import Counter
 
 import lasagne
 import numpy as np
 import theano.tensor as T
-import random
 from lasagne.nonlinearities import *
-from nltk.corpus import brown
 
 
 def words_to_mat(words, step_size, words_index):
     # length represents the index for an unknown word
     res = np.empty(len(words), dtype=int)
     for i, word in enumerate(words):
-        res[i] = words_index.get(word, len(words_index))
+        res[i] = words_index.get(word, words_index['<unk>'])
     X = np.empty((len(words) - step_size, step_size), dtype=np.int32)
     y = np.empty((len(words) - step_size,), dtype=np.int32)
     for i in range(len(words) - step_size):
@@ -22,20 +22,31 @@ def words_to_mat(words, step_size, words_index):
     return X, y
 
 
+def preprocess_data():
+    # convert to one long sentence
+    with open('../data/ptb/ptb.train.txt') as train_sr, \
+            open('../data/ptb/ptb.valid.txt') as val_sr, \
+            open('../data/ptb/ptb.test.txt') as test_sr:
+        train_words = [word for sent in train_sr for word in sent.split() + ['</eos>']]
+        val_words = [word for sent in val_sr for word in sent.split() + ['</eos>']]
+        test_words = [word for sent in test_sr for word in sent.split() + ['</eos>']]
+    return train_words, val_words, test_words
+
+
 def run_model(
+    train_words, val_words, test_words,
     batch_size, embedding_size, hidden_size, optimizer, initial_lr, step_size, epoch_size, drop_out,
     drop_out_apply, early_stopping, vocab_min_freq
 ):
     # convert data to index matrix
-    words = brown.words()
-    all_words = Counter(words)
+    all_words = Counter(itertools.chain(train_words, val_words, test_words))
     words_index = {}
     for word, count in all_words.items():
         if count >= vocab_min_freq:
             words_index[word] = len(words_index)
-    train_X, train_y = words_to_mat(words[:800000], step_size, words_index)
-    val_X, val_y = words_to_mat(words[800000:1000000], step_size, words_index)
-    test_X, test_y = words_to_mat(words[1000000:], step_size, words_index)
+    train_X, train_y = words_to_mat(train_words, step_size, words_index)
+    val_X, val_y = words_to_mat(val_words, step_size, words_index)
+    test_X, test_y = words_to_mat(test_words, step_size, words_index)
 
     # network
     input_var = T.imatrix('input')
@@ -109,10 +120,11 @@ def main():
         (True, False),
         (0, 5, 10, 15, 20),
     ]
+    train_words, val_words, test_words = preprocess_data()
     while True:
         params = [random.choice(param_choices) for param_choices in params_choices]
         print(params)
-        run_model(512, *params)
+        run_model(train_words, val_words, test_words, 512, *params)
 
 if __name__ == '__main__':
     main()
