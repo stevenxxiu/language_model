@@ -42,12 +42,9 @@ def run_model(
     all_words = Counter(itertools.chain(train_words, val_words, test_words))
     words_index = {}
     for word, count in all_words.items():
-        words_index[word] = len(words_index)
-    train_words_index = {}
-    for word, count in all_words.items():
         if count >= vocab_min_freq:
-            train_words_index[word] = words_index[word]
-    train_X, train_y = words_to_mat(train_words, step_size, train_words_index)
+            words_index[word] = len(words_index)
+    train_X, train_y = words_to_mat(train_words, step_size, words_index)
     val_X, val_y = words_to_mat(val_words, step_size, words_index)
     test_X, test_y = words_to_mat(test_words, step_size, words_index)
 
@@ -79,7 +76,6 @@ def run_model(
     # functions
     train = theano.function([input_var, target_values, lr], cost, updates=updates, on_unused_input='ignore')
     compute_cost = theano.function([input_var, target_values], cost)
-    pred = theano.function([input_var], network_output)
 
     def all_cost(X, y):
         total_cost = 0
