@@ -83,7 +83,7 @@ def run_model(
             batch_X_, batch_y_ = X[k:k + batch_size], y[k:k + batch_size]
             total_cost += compute_cost(batch_X_, batch_y_) * len(batch_y_)
         # geometric average of perplexity
-        return 2 ** (total_cost / len(y))
+        return np.exp(total_cost / len(y))
 
     prev_val_cost = np.inf
     for i in range(epoch_size):
