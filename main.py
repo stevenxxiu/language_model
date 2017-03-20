@@ -40,24 +40,24 @@ def run_model(
 ):
     # convert data to index matrix
     all_words = Counter(itertools.chain(train_words, val_words, test_words))
-    words_index = {}
+    word_to_index = {}
     for word, count in all_words.items():
         if count >= vocab_min_freq:
-            words_index[word] = len(words_index)
-    train_X, train_y = words_to_mat(train_words, step_size, words_index)
-    val_X, val_y = words_to_mat(val_words, step_size, words_index)
-    test_X, test_y = words_to_mat(test_words, step_size, words_index)
+            word_to_index[word] = len(word_to_index)
+    train_X, train_y = words_to_mat(train_words, step_size, word_to_index)
+    val_X, val_y = words_to_mat(val_words, step_size, word_to_index)
+    test_X, test_y = words_to_mat(test_words, step_size, word_to_index)
 
     # network
     input_var = T.imatrix('input')
     l_in = lasagne.layers.InputLayer((None, step_size), input_var)
-    l_emb = lasagne.layers.EmbeddingLayer(l_in, len(words_index) + 1, embedding_size)
+    l_emb = lasagne.layers.EmbeddingLayer(l_in, len(word_to_index) + 1, embedding_size)
     if drop_out_apply in ('embedding', 'both'):
         l_emb = lasagne.layers.DropoutLayer(l_emb, drop_out)
     l_forward = lasagne.layers.LSTMLayer(l_emb, hidden_size, grad_clipping=100, nonlinearity=tanh)
     if drop_out_apply in ('output', 'both'):
         l_forward = lasagne.layers.DropoutLayer(l_forward, drop_out)
-    l_out = lasagne.layers.DenseLayer(l_forward, num_units=len(words_index) + 1, nonlinearity=softmax)
+    l_out = lasagne.layers.DenseLayer(l_forward, num_units=len(word_to_index) + 1, nonlinearity=softmax)
 
     # vars
     lr = T.scalar('lr')
