@@ -24,9 +24,9 @@ def words_to_mat(words, step_size, words_index):
 
 def preprocess_data():
     # convert to one long sentence
-    with open('../data/ptb/ptb.train.txt') as train_sr, \
-            open('../data/ptb/ptb.valid.txt') as val_sr, \
-            open('../data/ptb/ptb.test.txt') as test_sr:
+    with open('../data/penn_treebank/ptb.train.txt') as train_sr, \
+            open('../data/penn_treebank/ptb.valid.txt') as val_sr, \
+            open('../data/penn_treebank/ptb.test.txt') as test_sr:
         train_words = [word for sent in train_sr for word in sent.split() + ['</eos>']]
         val_words = [word for sent in val_sr for word in sent.split() + ['</eos>']]
         test_words = [word for sent in test_sr for word in sent.split() + ['</eos>']]
