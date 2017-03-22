@@ -39,9 +39,9 @@ def run_model(
     drop_out_apply, early_stopping, vocab_min_freq
 ):
     # convert data to index matrix
-    all_words = Counter(itertools.chain(train_words, val_words, test_words))
+    word_to_freq = Counter(itertools.chain(train_words, val_words, test_words))
     word_to_index = {}
-    for word, count in all_words.items():
+    for word, count in word_to_freq.items():
         if count >= vocab_min_freq:
             word_to_index[word] = len(word_to_index)
     train_X, train_y = words_to_mat(train_words, step_size, word_to_index)
