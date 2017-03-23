@@ -59,7 +59,7 @@ def run_model(
         l_forward = lasagne.layers.DropoutLayer(l_forward, drop_out)
     l_out = lasagne.layers.DenseLayer(l_forward, num_units=len(word_to_index), nonlinearity=softmax)
 
-    # vars
+    # outputs
     lr = T.scalar('lr')
     target_values = T.ivector('target_output')
     network_output = lasagne.layers.get_output(l_out)
