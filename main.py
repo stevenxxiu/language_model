@@ -11,7 +11,7 @@ from lasagne.nonlinearities import *
 
 def words_to_mat(words, step_size, words_index):
     # length represents the index for an unknown word
-    res = np.empty(len(words), dtype=int)
+    res = np.empty(len(words), dtype=np.int32)
     for i, word in enumerate(words):
         res[i] = words_index.get(word, words_index['<unk>'])
     X = np.empty((len(words) - step_size, step_size), dtype=np.int32)
