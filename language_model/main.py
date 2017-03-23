@@ -49,8 +49,8 @@ def run_model(
     test_X, test_y = words_to_mat(test_words, step_size, word_to_index)
 
     # network
-    input_var = T.imatrix('input')
-    l_in = lasagne.layers.InputLayer((None, step_size), input_var)
+    input_ = T.imatrix('input')
+    l_in = lasagne.layers.InputLayer((None, step_size), input_)
     l_emb = lasagne.layers.EmbeddingLayer(l_in, len(word_to_index), embedding_size)
     if drop_out_apply in ('embedding', 'both'):
         l_emb = lasagne.layers.DropoutLayer(l_emb, drop_out)
@@ -61,9 +61,9 @@ def run_model(
 
     # outputs
     lr = T.scalar('lr')
-    target_values = T.ivector('target_output')
+    target = T.ivector('target')
     network_output = lasagne.layers.get_output(l_out)
-    cost = T.nnet.categorical_crossentropy(network_output, target_values).mean()
+    cost = T.nnet.categorical_crossentropy(network_output, target).mean()
     all_params = lasagne.layers.get_all_params(l_out, trainable=True)
     updates = None
     if optimizer == 'sgd':
@@ -74,8 +74,8 @@ def run_model(
         updates = lasagne.updates.rmsprop(cost, all_params, initial_lr)
 
     # functions
-    train = theano.function([input_var, target_values, lr], cost, updates=updates, on_unused_input='ignore')
-    compute_cost = theano.function([input_var, target_values], cost)
+    train = theano.function([input_, target, lr], cost, updates=updates, on_unused_input='ignore')
+    compute_cost = theano.function([input_, target], cost)
 
     def all_cost(X, y):
         total_cost = 0
