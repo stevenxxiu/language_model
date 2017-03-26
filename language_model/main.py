@@ -68,7 +68,7 @@ def run_model(
     if drop_out_apply in ('output', 'both'):
         lstm = tf.nn.dropout(lstm, keep_prob)
     dense = tf.layers.dense(lstm, len(word_to_index))
-    cost = tf.reduce_sum(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y, logits=dense))
+    cost = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y, logits=dense))
 
     # grad
     opt = None
@@ -89,7 +89,7 @@ def run_model(
         total_cost = 0
         for k in range(0, len(y_), batch_size):
             batch_X_, batch_y_ = X_[k:k + batch_size], y_[k:k + batch_size]
-            total_cost += sess.run(cost, feed_dict={X: batch_X_, y: batch_y_, keep_prob: 1})
+            total_cost += sess.run(cost, feed_dict={X: batch_X_, y: batch_y_, keep_prob: 1}) * len(batch_y_)
         # geometric average of perplexity
         return np.exp(total_cost / len(y_))
 
