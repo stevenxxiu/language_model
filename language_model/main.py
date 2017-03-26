@@ -3,10 +3,10 @@ import itertools
 import random
 from collections import Counter
 
-import lasagne
 import numpy as np
-import theano.tensor as T
-from lasagne.nonlinearities import *
+import tensorflow as tf
+from tensorflow.contrib import rnn
+from tensorflow.python.ops import clip_ops
 
 
 def words_to_mat(words, step_size, words_index):
@@ -48,63 +48,73 @@ def run_model(
     val_X, val_y = words_to_mat(val_words, step_size, word_to_index)
     test_X, test_y = words_to_mat(test_words, step_size, word_to_index)
 
+    # inputs
+    X = tf.placeholder(tf.int32, [None, step_size])
+    y = tf.placeholder(tf.int32, [None])
+    lr = tf.placeholder(tf.float32, [])
+
     # network
-    input_ = T.imatrix('input')
-    l_in = lasagne.layers.InputLayer((None, step_size), input_)
-    l_emb = lasagne.layers.EmbeddingLayer(l_in, len(word_to_index), embedding_size)
+    emb = tf.nn.embedding_lookup(tf.Variable(tf.random_normal(
+        [len(word_to_index), embedding_size], stddev=0.01)
+    ), X)
     if drop_out_apply in ('embedding', 'both'):
-        l_emb = lasagne.layers.DropoutLayer(l_emb, drop_out)
-    l_forward = lasagne.layers.LSTMLayer(l_emb, hidden_size, grad_clipping=100, nonlinearity=tanh)
+        emb = tf.nn.dropout(emb, 1 - drop_out)
+    emb = tf.split(tf.reshape(tf.transpose(emb, [1, 0, 2]), [-1, embedding_size]), step_size, 0)
+    lstm_cell = tf.contrib.rnn.BasicLSTMCell(hidden_size)
+    outputs, states = rnn.static_rnn(lstm_cell, emb, dtype=tf.float32)
+    lstm_vars = tf.get_collection(tf.GraphKeys.VARIABLES, scope='rnn')
+    lstm = outputs[-1]
     if drop_out_apply in ('output', 'both'):
-        l_forward = lasagne.layers.DropoutLayer(l_forward, drop_out)
-    l_out = lasagne.layers.DenseLayer(l_forward, num_units=len(word_to_index), nonlinearity=softmax)
+        lstm = tf.nn.dropout(lstm, 1 - drop_out)
+    dense = tf.layers.dense(lstm, len(word_to_index))
+    cost = tf.reduce_sum(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y, logits=dense))
 
-    # outputs
-    lr = T.scalar('lr')
-    target = T.ivector('target')
-    network_output = lasagne.layers.get_output(l_out)
-    cost = T.nnet.categorical_crossentropy(network_output, target).mean()
-    all_params = lasagne.layers.get_all_params(l_out, trainable=True)
-    updates = None
+    # grad
+    opt = None
     if optimizer == 'sgd':
-        updates = lasagne.updates.sgd(cost, all_params, lr)
+        opt = tf.train.GradientDescentOptimizer(lr)
     elif optimizer == 'adam':
-        updates = lasagne.updates.adam(cost, all_params, initial_lr)
+        opt = tf.train.AdamOptimizer(initial_lr)
     elif optimizer == 'rmsprop':
-        updates = lasagne.updates.rmsprop(cost, all_params, initial_lr)
+        opt = tf.train.RMSPropOptimizer(initial_lr)
+    grads_and_vars = opt.compute_gradients(cost)
+    capped_grads_and_vars = [
+        (clip_ops.clip_by_value(grad, -100, 100), var) if var in lstm_vars else (grad, var)
+        for grad, var in grads_and_vars
+    ]
+    train = opt.apply_gradients(capped_grads_and_vars)
 
-    # functions
-    train = theano.function([input_, target, lr], cost, updates=updates, on_unused_input='ignore')
-    compute_cost = theano.function([input_, target], cost)
-
-    def all_cost(X, y):
+    def all_cost(X_, y_):
         total_cost = 0
-        for k in range(0, len(y), batch_size):
-            batch_X_, batch_y_ = X[k:k + batch_size], y[k:k + batch_size]
-            total_cost += compute_cost(batch_X_, batch_y_) * len(batch_y_)
+        for k in range(0, len(y_), batch_size):
+            batch_X_, batch_y_ = X_[k:k + batch_size], y_[k:k + batch_size]
+            total_cost += sess.run(cost, feed_dict={X: batch_X_, y: batch_y_})
         # geometric average of perplexity
-        return np.exp(total_cost / len(y))
+        return np.exp(total_cost / len(y_))
 
-    prev_val_cost = np.inf
-    for i in range(epoch_size):
-        # generate minibatches
-        p = np.random.permutation(len(train_y))
+    with tf.Session() as sess:
+        sess.run(tf.global_variables_initializer())
 
-        # train
-        train_X, train_y = train_X[p], train_y[p]
-        for j in range(0, len(train_y), batch_size):
-            if j % 256000 == 0:
-                # progress indicator
-                print(datetime.datetime.now(), j, all_cost(val_X, val_y))
-            batch_X, batch_y = train_X[j:j + batch_size], train_y[j:j + batch_size]
-            train(batch_X, batch_y, initial_lr ** max(i + 1 - 4, 0))
+        prev_val_cost = np.inf
+        for i in range(epoch_size):
+            # generate minibatches
+            p = np.random.permutation(len(train_y))
 
-        # validate on epoch
-        val_cost = all_cost(val_X, val_y)
-        if early_stopping and val_cost >= prev_val_cost:
-            break
-        prev_val_cost = val_cost
-    print(datetime.datetime.now(), 'final', all_cost(val_X, val_y), all_cost(test_X, test_y))
+            # train
+            train_X, train_y = train_X[p], train_y[p]
+            for j in range(0, len(train_y), batch_size):
+                if j % 256000 == 0:
+                    # progress indicator
+                    print(datetime.datetime.now(), j, all_cost(val_X, val_y))
+                batch_X, batch_y = train_X[j:j + batch_size], train_y[j:j + batch_size]
+                sess.run(train, feed_dict={X: batch_X, y: batch_y, lr: initial_lr ** max(i + 1 - 4, 0)})
+
+            # validate on epoch
+            val_cost = all_cost(val_X, val_y)
+            if early_stopping and val_cost >= prev_val_cost:
+                break
+            prev_val_cost = val_cost
+        print(datetime.datetime.now(), 'final', all_cost(val_X, val_y), all_cost(test_X, test_y))
 
 
 def main():
@@ -123,8 +133,9 @@ def main():
     train_words, val_words, test_words = preprocess_data()
     while True:
         params = [random.choice(param_choices) for param_choices in params_choices]
-        print(params)
+        params = [param_choices[0] for param_choices in params_choices]
         run_model(train_words, val_words, test_words, 512, *params)
+        return
 
 if __name__ == '__main__':
     main()
