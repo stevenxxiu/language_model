@@ -97,7 +97,7 @@ def run_model(
                 # progress indicator
                 print(datetime.datetime.now(), j, all_cost(val_X, val_y))
             batch_X, batch_y = train_X[j:j + batch_size], train_y[j:j + batch_size]
-            train(batch_X, batch_y, initial_lr ** max(i + 1 - 4, 0.0))
+            train(batch_X, batch_y, initial_lr ** max(i + 1 - 4, 0))
 
         # validate on epoch
         val_cost = all_cost(val_X, val_y)
