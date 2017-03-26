@@ -136,6 +136,7 @@ def main():
     train_words, val_words, test_words = preprocess_data()
     while True:
         params = [random.choice(param_choices) for param_choices in params_choices]
+        print(params)
         run_model(train_words, val_words, test_words, 512, *params)
         return
 
