@@ -6,7 +6,7 @@ from collections import Counter
 import numpy as np
 import tensorflow as tf
 from tensorflow.contrib import rnn
-from tensorflow.python.ops import clip_ops
+from tensorflow.python.ops import clip_ops, init_ops
 
 
 def words_to_mat(words, step_size, words_index):
@@ -52,22 +52,22 @@ def run_model(
     X = tf.placeholder(tf.int32, [None, step_size])
     y = tf.placeholder(tf.int32, [None])
     lr = tf.placeholder(tf.float32, [])
-    keep_prob = tf.placeholder(tf.float32, [])
+    training = tf.placeholder(tf.bool, [])
 
     # network
     emb = tf.nn.embedding_lookup(tf.Variable(tf.random_normal(
         [len(word_to_index), embedding_size], stddev=0.01)
     ), X)
     if drop_out_apply in ('embedding', 'both'):
-        emb = tf.nn.dropout(emb, keep_prob)
+        emb = tf.layers.dropout(emb, drop_out, training=training)
     emb = tf.split(tf.reshape(tf.transpose(emb, [1, 0, 2]), [-1, embedding_size]), step_size, 0)
     lstm_cell = rnn.BasicLSTMCell(hidden_size)
     outputs, states = rnn.static_rnn(lstm_cell, emb, dtype=tf.float32)
-    lstm_vars = tf.get_collection(tf.GraphKeys.VARIABLES, scope='rnn')
+    lstm_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='rnn')
     lstm = outputs[-1]
     if drop_out_apply in ('output', 'both'):
-        lstm = tf.nn.dropout(lstm, keep_prob)
-    dense = tf.layers.dense(lstm, len(word_to_index))
+        lstm = tf.layers.dropout(lstm, drop_out, training=training)
+    dense = tf.layers.dense(lstm, len(word_to_index), kernel_initializer=init_ops.glorot_uniform_initializer())
     cost = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y, logits=dense))
 
     # grad
@@ -89,7 +89,7 @@ def run_model(
         total_cost = 0
         for k in range(0, len(y_), batch_size):
             batch_X_, batch_y_ = X_[k:k + batch_size], y_[k:k + batch_size]
-            total_cost += sess.run(cost, feed_dict={X: batch_X_, y: batch_y_, keep_prob: 1}) * len(batch_y_)
+            total_cost += sess.run(cost, feed_dict={X: batch_X_, y: batch_y_, training: False}) * len(batch_y_)
         # geometric average of perplexity
         return np.exp(total_cost / len(y_))
 
@@ -109,7 +109,7 @@ def run_model(
                     print(datetime.datetime.now(), j, all_cost(val_X, val_y))
                 batch_X, batch_y = train_X[j:j + batch_size], train_y[j:j + batch_size]
                 sess.run(train, feed_dict={
-                    X: batch_X, y: batch_y, keep_prob: 1 - drop_out, lr: initial_lr ** max(i + 1 - 4, 0)
+                    X: batch_X, y: batch_y, training: True, lr: initial_lr ** max(i + 1 - 4, 0)
                 })
 
             # validate on epoch
