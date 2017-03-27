@@ -79,11 +79,10 @@ def run_model(
     elif optimizer == 'rmsprop':
         opt = tf.train.RMSPropOptimizer(initial_lr)
     grads_and_vars = opt.compute_gradients(cost)
-    capped_grads_and_vars = [
-        (clip_ops.clip_by_value(grad, -100, 100), var) if var in lstm_vars else (grad, var)
-        for grad, var in grads_and_vars
-    ]
-    train = opt.apply_gradients(capped_grads_and_vars)
+    for i, (grad, var) in enumerate(grads_and_vars):
+        if var in lstm_vars:
+            grads_and_vars[i] = (clip_ops.clip_by_value(grad, -100, 100), var)
+    train = opt.apply_gradients(grads_and_vars)
 
     def all_cost(X_, y_):
         total_cost = 0
