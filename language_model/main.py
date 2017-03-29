@@ -68,7 +68,7 @@ def run_model(
     if drop_out_apply in ('output', 'both'):
         lstm = tf.layers.dropout(lstm, drop_out, training=training)
     dense = tf.layers.dense(lstm, len(word_to_index), kernel_initializer=init_ops.glorot_uniform_initializer())
-    cost = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y, logits=dense))
+    loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y, logits=dense))
 
     # grad
     opt = None
@@ -78,24 +78,24 @@ def run_model(
         opt = tf.train.AdamOptimizer(initial_lr)
     elif optimizer == 'rmsprop':
         opt = tf.train.RMSPropOptimizer(initial_lr)
-    grads_and_vars = opt.compute_gradients(cost)
+    grads_and_vars = opt.compute_gradients(loss)
     for i, (grad, var) in enumerate(grads_and_vars):
         if var in lstm_vars:
             grads_and_vars[i] = (clip_ops.clip_by_value(grad, -100, 100), var)
     train = opt.apply_gradients(grads_and_vars)
 
-    def all_cost(X_, y_):
-        total_cost = 0
+    def all_loss(X_, y_):
+        total_loss = 0
         for k in range(0, len(y_), batch_size):
             batch_X_, batch_y_ = X_[k:k + batch_size], y_[k:k + batch_size]
-            total_cost += sess.run(cost, feed_dict={X: batch_X_, y: batch_y_, training: False}) * len(batch_y_)
+            total_loss += sess.run(loss, feed_dict={X: batch_X_, y: batch_y_, training: False}) * len(batch_y_)
         # geometric average of perplexity
-        return np.exp(total_cost / len(y_))
+        return np.exp(total_loss / len(y_))
 
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
 
-        prev_val_cost = np.inf
+        prev_val_loss = np.inf
         for i in range(epoch_size):
             # generate minibatches
             p = np.random.permutation(len(train_y))
@@ -105,18 +105,18 @@ def run_model(
             for j in range(0, len(train_y), batch_size):
                 if j % 256000 == 0:
                     # progress indicator
-                    print(datetime.datetime.now(), j, all_cost(val_X, val_y))
+                    print(datetime.datetime.now(), j, all_loss(val_X, val_y))
                 batch_X, batch_y = train_X[j:j + batch_size], train_y[j:j + batch_size]
                 sess.run(train, feed_dict={
                     X: batch_X, y: batch_y, training: True, lr: initial_lr ** max(i + 1 - 4, 0)
                 })
 
             # validate on epoch
-            val_cost = all_cost(val_X, val_y)
-            if early_stopping and val_cost >= prev_val_cost:
+            val_loss = all_loss(val_X, val_y)
+            if early_stopping and val_loss >= prev_val_loss:
                 break
-            prev_val_cost = val_cost
-        print(datetime.datetime.now(), 'final', all_cost(val_X, val_y), all_cost(test_X, test_y))
+            prev_val_loss = val_loss
+        print(datetime.datetime.now(), 'final', all_loss(val_X, val_y), all_loss(test_X, test_y))
 
 
 def main():
