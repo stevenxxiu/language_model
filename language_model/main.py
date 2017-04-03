@@ -82,7 +82,7 @@ def run_model(
     for i, (grad, var) in enumerate(grads_and_vars):
         if var in lstm_vars:
             grads_and_vars[i] = (clip_ops.clip_by_value(grad, -100, 100), var)
-    train = opt.apply_gradients(grads_and_vars)
+    train_op = opt.apply_gradients(grads_and_vars)
 
     def all_loss(X_, y_):
         total_loss = 0
@@ -107,7 +107,7 @@ def run_model(
                     # progress indicator
                     print(datetime.datetime.now(), j, all_loss(val_X, val_y))
                 batch_X, batch_y = train_X[j:j + batch_size], train_y[j:j + batch_size]
-                sess.run(train, feed_dict={
+                sess.run(train_op, feed_dict={
                     X: batch_X, y: batch_y, training: True, lr: initial_lr ** max(i + 1 - 4, 0)
                 })
 
