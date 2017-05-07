@@ -22,7 +22,7 @@ def words_to_mat(words, step_size, words_index):
     return X, y
 
 
-def preprocess_data():
+def load_data():
     # convert to one long sentence
     with open('../data/penn_treebank/ptb.train.txt', encoding='utf-8') as train_sr, \
             open('../data/penn_treebank/ptb.valid.txt', encoding='utf-8') as val_sr, \
@@ -132,7 +132,7 @@ def main():
         (True, False),
         (0, 5, 10, 15, 20),
     ]
-    train_words, val_words, test_words = preprocess_data()
+    train_words, val_words, test_words = load_data()
     while True:
         params = [random.choice(param_choices) for param_choices in params_choices]
         print(params)
