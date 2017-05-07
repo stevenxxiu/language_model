@@ -24,13 +24,11 @@ def words_to_mat(words, step_size, words_index):
 
 def load_data():
     # convert to one long sentence
-    with open('../data/penn_treebank/ptb.train.txt', encoding='utf-8') as train_sr, \
-            open('../data/penn_treebank/ptb.valid.txt', encoding='utf-8') as val_sr, \
-            open('../data/penn_treebank/ptb.test.txt', encoding='utf-8') as test_sr:
-        train_words = [word for sent in train_sr for word in sent.split() + ['</eos>']]
-        val_words = [word for sent in val_sr for word in sent.split() + ['</eos>']]
-        test_words = [word for sent in test_sr for word in sent.split() + ['</eos>']]
-    return train_words, val_words, test_words
+    res = []
+    for file in ('ptb.train.txt', 'ptb.valid.txt', 'ptb.test.txt'):
+        with open(f'../data/penn_treebank/{file}', 'r') as sr:
+            res.append([word for sent in sr for word in sent.split() + ['</eos>']])
+    return res
 
 
 def run_model(
